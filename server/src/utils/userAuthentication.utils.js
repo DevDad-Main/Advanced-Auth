@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import redisClient from "../lib/redis.lib.js";
-import { sendMail } from "./sendMail.utils.js";
+import { sendMail } from "../lib/sendMail.lib.js";
 import { AppError, logger } from "devdad-express-utils";
 
 //#region Generate OTP Email HTML

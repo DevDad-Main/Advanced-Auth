@@ -1,14 +1,15 @@
-import { clearRedisUserCache } from "src/utils/clearRedisCache.utils";
+import { clearRedisUserCache } from "../utils/clearRedisCache.utils.js";
 import {
   deleteRegistrationSession,
   getRegistrationSession,
-} from "src/utils/registrationSession.utils";
+} from "../utils/registrationSession.utils.js";
 import {
   checkOTPRestrictions,
   sendOTP,
   sendWelcomeEmail,
   trackOTPRequests,
-} from "src/utils/userAuthentication.utils";
+} from "../utils/userAuthentication.utils.js";
+import { User } from "../models/User.model.js";
 
 export const authenticationService = {
   async checkUserOtpRestrictionsAndRequests(email, next) {

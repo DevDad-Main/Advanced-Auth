@@ -8,7 +8,7 @@ import { validationResult } from "express-validator";
 import { User } from "../models/User.model.js";
 import bcrypt from "bcrypt";
 import { generateTokens } from "../utils/generateToken.utils.js";
-import { authenticationService } from "src/services/auth.services.js";
+import { authenticationService } from "../services/auth.services.js";
 
 //#region Constants
 const SALT_ROUNDS = 12;
