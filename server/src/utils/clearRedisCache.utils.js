@@ -1,9 +1,9 @@
-import { AppError } from "devdad-express-utils";
+import { AppError, logger } from "devdad-express-utils";
 
 export async function clearRedisUserCache(req, id) {
   const keys = await req.redisClient.keys(`user_profile:${id}`);
 
-  console.log("DEBUG: Redis Cache Keys for user ${id} = ", keys);
+  logger.debug("Found Redis cache keys for user", { userId: id, keyCount: keys.length });
 
   if (Array.isArray(keys) && keys.length > 0) {
     await req.redisClient.unlink(keys);
@@ -12,17 +12,14 @@ export async function clearRedisUserCache(req, id) {
   // Also clear any related profile cache patterns
   const relatedKeys = await req.redisClient.keys(`*profile*${id}*`);
   if (Array.isArray(relatedKeys) && relatedKeys.length > 0) {
-    console.log("DEBUG: Additional Redis Cache Keys cleared = ", relatedKeys);
+    logger.debug("Cleared additional Redis cache keys", { userId: id, relatedKeyCount: relatedKeys.length });
     await req.redisClient.unlink(relatedKeys);
   }
 
   // Clear user connections cache
   const connectionsKeys = await req.redisClient.keys(`user_connections:${id}`);
   if (Array.isArray(connectionsKeys) && connectionsKeys.length > 0) {
-    console.log(
-      "DEBUG: User Connections Cache Keys cleared = ",
-      connectionsKeys,
-    );
+    logger.debug("Cleared user connections cache keys", { userId, connectionsKeyCount: connectionsKeys.length });
     await req.redisClient.unlink(connectionsKeys);
   }
 }
@@ -35,7 +32,7 @@ export async function clearRedisUserConnectionsCache(req, userId) {
   }
 
   await req.redisClient.unlink(cacheKey);
-  console.log("DEBUG: Cleared user connections cache for user:", userId);
+  logger.debug("Cleared user connections cache", { userId });
 }
 
 export async function clearRedisConnectionsCacheForMultipleUsers(req, userIds) {
@@ -43,7 +40,7 @@ export async function clearRedisConnectionsCacheForMultipleUsers(req, userIds) {
 
   const cacheKeys = userIds.map((id) => `user_connections:${id}`);
 
-  logger.info("DEBUG: Clearing connections cache for users:", { cacheKeys });
+  logger.debug("Clearing connections cache for users", { userIds, keyCount: cacheKeys.length });
   const existingKeys = [];
 
   for (const key of cacheKeys) {
@@ -55,7 +52,7 @@ export async function clearRedisConnectionsCacheForMultipleUsers(req, userIds) {
 
   if (existingKeys.length > 0) {
     await req.redisClient.unlink(existingKeys);
-    console.log("DEBUG: Cleared connections cache for users:", existingKeys);
+    logger.debug("Cleared connections cache for multiple users", { existingKeyCount: existingKeys.length });
   }
 }
 

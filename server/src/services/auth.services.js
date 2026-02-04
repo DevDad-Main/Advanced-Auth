@@ -100,7 +100,7 @@ export const authenticationService = {
         registrationToken: registrationToken.substring(0, 8) + "...",
       });
 
-      console.log("Checking isVerified variable: ", isVerified);
+      logger.debug("OTP verification result", { isVerified });
 
       return { isVerified };
     } catch (error) {

@@ -112,7 +112,7 @@ export const authenticationController = {
       );
 
     const { userData } = registrationSession;
-    console.log("Checking User DATA", userData);
+    logger.debug("Retrieved user data from registration session", { userData: { ...userData, password: '[REDACTED]' } });
     const { firstName, lastName, email, password } = userData;
     const fullName = `${firstName} ${lastName}`;
 
@@ -123,10 +123,7 @@ export const authenticationController = {
       next,
     );
 
-    console.log(
-      "Checking isVerified Variable from inside controller",
-      isVerified,
-    );
+    logger.debug("OTP verification result", { isVerified });
 
     const { user } = await authenticationService.createNewUserAndCleanUpCaches(
       {

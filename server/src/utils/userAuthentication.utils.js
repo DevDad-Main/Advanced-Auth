@@ -450,7 +450,7 @@ export const sendOTP = async (name, email) => {
 export const verifyOTP = async (email, otp) => {
   try {
     const storedOTP = await redisClient.get(`otp:${email}`);
-    console.log("DEBUG: storedOTP = ", storedOTP);
+    logger.debug("Retrieved stored OTP from Redis", { storedOTP: storedOTP ? '[REDACTED]' : null });
 
     if (!storedOTP) {
       throw new AppError("Invalid or expired OTP", 400);
@@ -461,7 +461,7 @@ export const verifyOTP = async (email, otp) => {
       (await redisClient.get(failedAttemptsKey)) || "0",
     );
 
-    console.log("DEBUG: storedOTP & otp = ", storedOTP, otp);
+    logger.debug("Comparing OTP values", { storedOTP: storedOTP ? '[REDACTED]' : null, otpProvided: !!otp });
 
     if (parseInt(storedOTP) !== parseInt(otp)) {
       if (failedAttempts >= 2) {

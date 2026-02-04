@@ -12,12 +12,16 @@ export const registerUserValidation = [
     .notEmpty()
     .withMessage("First name is required.")
     .trim()
+    .escape()
+    .blacklist('<>{}[]\\|%^`~')
     .custom(validateName),
 
   body("lastName")
     .notEmpty()
     .withMessage("Last name is required.")
     .trim()
+    .escape()
+    .blacklist('<>{}[]\\|%^`~')
     .custom(validateName),
 
   body("email")
@@ -32,21 +36,29 @@ export const registerUserValidation = [
         throw new Error("Email address already in use, Please choose another.");
       }
     })
-    .normalizeEmail(),
+    .normalizeEmail({
+      remove_dots: false,
+      remove_extension: false,
+      gmail_remove_subaddress: false,
+      outlookdotcom_remove_subaddress: false,
+      yahoo_remove_subaddress: false,
+      icloud_remove_subaddress: false,
+    })
+    .escape(),
 
   body("password")
     .notEmpty()
     .withMessage("Password is required.")
     .custom(validatePassword)
     .isStrongPassword({
-      minLength: 6,
-      maxLength: 12,
-      minUppercase: 1,
-      minNumbers: 3,
-      minSymbols: 1,
+      minLength: parseInt(process.env.PASSWORD_MIN_LENGTH) || 8,
+      maxLength: parseInt(process.env.PASSWORD_MAX_LENGTH) || 128,
+      minUppercase: parseInt(process.env.PASSWORD_MIN_UPPERCASE) || 1,
+      minNumbers: parseInt(process.env.PASSWORD_MIN_NUMBERS) || 1,
+      minSymbols: parseInt(process.env.PASSWORD_MIN_SYMBOLS) || 1,
     })
     .withMessage(
-      "Password must be 6–12 characters and include at least 1 uppercase, 3 numbers, and 1 symbol.",
+      `Password must be ${process.env.PASSWORD_MIN_LENGTH || 8}-${process.env.PASSWORD_MAX_LENGTH || 128} characters and include at least ${process.env.PASSWORD_MIN_UPPERCASE || 1} uppercase, ${process.env.PASSWORD_MIN_NUMBERS || 1} numbers, and ${process.env.PASSWORD_MIN_SYMBOLS || 1} symbol.`,
     )
     .trim(),
 ];
