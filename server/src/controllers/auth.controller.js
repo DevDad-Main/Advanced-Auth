@@ -5,11 +5,26 @@ import {
   sendSuccess,
 } from "devdad-express-utils";
 import { validationResult } from "express-validator";
+import { User } from "../models/User.model.js";
+import bcrypt from "bcrypt";
+import { generateTokens } from "../utils/generateToken.utils.js";
+import { authenticationService } from "src/services/auth.services.js";
+
+//#region Constants
+const SALT_ROUNDS = 12;
+
+const HTTP_OPTIONS = {
+  httpOnly: process.env.NODE_ENV === "production",
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "none",
+  maxAge: 24 * 60 * 60 * 1000,
+};
+//#endregion
 
 export const authenticationController = {
   //#region Signup
-  signup: catchAsync(async (req, res) => {
-    const { email, password, name } = req.body;
+  register: catchAsync(async (req, res, next) => {
+    const { email, password, fullName, lastName } = req.body;
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -22,7 +37,43 @@ export const authenticationController = {
       return sendError(res, errorMessages.join(", "), 400);
     }
 
-    return sendSuccess(res, {}, "Signup Successful", 201);
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      logger.warn("User Already Exists.", {
+        email,
+        name,
+        existingUserID: existingUser._id,
+      });
+      return sendError(res, "User Already Exists", 400);
+    }
+
+    await authenticationService.checkUserOtpRestrictionsAndRequests(
+      email,
+      next,
+    );
+
+    const userData = { firstName, lastName, email, password };
+
+    const { registrationToken } =
+      await authenticationService.storeUserDataInRedisAndCreateRegistrationToken(
+        userData,
+        next,
+      );
+
+    const userFullName = `${firstName} ${lastName}`;
+    await authenticationService.sendUserOtp(userFullName, email);
+
+    return sendSuccess(
+      res,
+      {
+        registrationToken,
+        message: "Please check your email for the verification code.",
+        expiresIn: "30 minutes",
+      },
+      "Registration initiated. Please verify your email.",
+      201,
+    );
   }),
   //#endregion
 
