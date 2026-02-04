@@ -1,13 +1,18 @@
-import { AppError } from "devdad-express-utils";
 import { User } from "../models/User.model.js";
 import { body } from "express-validator";
 import { validateName, validatePassword } from "./safeRegex.utils.js";
 
 //#region Register User Validation
 export const registerUserValidation = [
-  body("name")
+  body("firstName")
     .notEmpty()
     .withMessage("First name is required.")
+    .trim()
+    .custom(validateName),
+
+  body("lastName")
+    .notEmpty()
+    .withMessage("Last name is required.")
     .trim()
     .custom(validateName),
 

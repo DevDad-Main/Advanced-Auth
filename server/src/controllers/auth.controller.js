@@ -24,7 +24,7 @@ const HTTP_OPTIONS = {
 export const authenticationController = {
   //#region Signup
   register: catchAsync(async (req, res, next) => {
-    const { email, password, fullName, lastName } = req.body;
+    const { email, password, firstName, lastName } = req.body;
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -32,7 +32,7 @@ export const authenticationController = {
       logger.warn("Registration Validation Error", {
         errorMessages,
         email,
-        name,
+        firstName,
       });
       return sendError(res, errorMessages.join(", "), 400);
     }
@@ -62,7 +62,7 @@ export const authenticationController = {
       );
 
     const userFullName = `${firstName} ${lastName}`;
-    await authenticationService.sendUserOtp(userFullName, email);
+    await authenticationService.sendUserOtp(userFullName, email, next);
 
     return sendSuccess(
       res,
@@ -72,6 +72,87 @@ export const authenticationController = {
         expiresIn: "30 minutes",
       },
       "Registration initiated. Please verify your email.",
+      201,
+    );
+  }),
+  //#endregion
+
+  //#region Verify OTP
+  verifyUserOTP: catchAsync(async (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn("OTP Verification Validation Error", {
+        errorMessages,
+        registrationToken: req.body?.registrationToken?.substring(0, 8) + "...",
+        body: req.body,
+      });
+      return sendError(res, errorMessages.join(", "), 400);
+    }
+
+    const { registrationToken, otp } = req.body;
+
+    logger.info(
+      "DEBUG: Verification request - Token:",
+      registrationToken?.substring(0, 8) + "...",
+      "OTP:",
+      otp,
+    );
+
+    // Retrieve Registration Data From Redis
+    const { registrationSession } =
+      await authenticationService.retrieveUserRegistrationSession(
+        registrationToken,
+        next,
+      );
+
+    const { userData } = registrationSession;
+    const { firstName, lastName, email, password } = userData;
+    const fullName = `${firstName} ${lastName}`;
+
+    const { isVerified } = authenticationService.verifyUserViaOTPVerification(
+      email,
+      otp,
+      registrationToken,
+      next,
+    );
+
+    const { user } = await authenticationService.createNewUserAndCleanUpCaches(
+      {
+        isVerified,
+        email,
+        fullName,
+        password,
+        registrationToken,
+      },
+      next,
+    );
+
+    await authenticationService.sendUserWelcomeEmail(
+      req,
+      fullName,
+      email,
+      user._id,
+    );
+
+    await authenticationService.deleteNewUserRegistrationSession(
+      registrationToken,
+    );
+
+    return sendSuccess(
+      res,
+      {
+        user: {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          username: user.username,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt,
+        },
+      },
+      "Registration completed successfully! Welcome aboard!",
       201,
     );
   }),
