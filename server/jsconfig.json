@@ -5,6 +5,5 @@
     "jsx": "react",
     "moduleResolution": "node",
     "baseUrl": "."
-  },
-  "include": ["src"]
+  }
 }

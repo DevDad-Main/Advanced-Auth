@@ -11,8 +11,6 @@ import { generateTokens } from "../utils/generateToken.utils.js";
 import { authenticationService } from "../services/auth.services.js";
 
 //#region Constants
-const SALT_ROUNDS = 12;
-
 const HTTP_OPTIONS = {
   httpOnly: process.env.NODE_ENV === "production",
   secure: process.env.NODE_ENV === "production",
@@ -22,7 +20,7 @@ const HTTP_OPTIONS = {
 //#endregion
 
 export const authenticationController = {
-  //#region Signup
+  //#region Register
   register: catchAsync(async (req, res, next) => {
     const { email, password, firstName, lastName } = req.body;
     const errors = validationResult(req);
@@ -42,7 +40,7 @@ export const authenticationController = {
     if (existingUser) {
       logger.warn("User Already Exists.", {
         email,
-        name,
+        fullName,
         existingUserID: existingUser._id,
       });
       return sendError(res, "User Already Exists", 400);
@@ -62,7 +60,13 @@ export const authenticationController = {
       );
 
     const userFullName = `${firstName} ${lastName}`;
-    await authenticationService.sendUserOtp(userFullName, email, next);
+
+    await authenticationService.sendUserOtp(
+      userFullName,
+      email,
+      registrationToken,
+      next,
+    );
 
     return sendSuccess(
       res,
@@ -108,19 +112,25 @@ export const authenticationController = {
       );
 
     const { userData } = registrationSession;
+    console.log("Checking User DATA", userData);
     const { firstName, lastName, email, password } = userData;
     const fullName = `${firstName} ${lastName}`;
 
-    const { isVerified } = authenticationService.verifyUserViaOTPVerification(
+    const isVerified = await authenticationService.verifyUserViaOTPVerification(
       email,
       otp,
       registrationToken,
       next,
     );
 
+    console.log(
+      "Checking isVerified Variable from inside controller",
+      isVerified,
+    );
+
     const { user } = await authenticationService.createNewUserAndCleanUpCaches(
       {
-        isVerified,
+        isVerified: Boolean(isVerified),
         email,
         fullName,
         password,
@@ -159,18 +169,53 @@ export const authenticationController = {
   //#endregion
 
   //#region Login
-  login: catchAsync(async (req, res) => {
-    logger.info("Login Controller Called.");
+  login: catchAsync(async (req, res, next) => {
+    const { email, password } = req.body;
+    logger.info("Login Handler Req Body: ", { body: req.body });
 
-    return sendSuccess(res, {}, "Login Successful", 201);
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map((error) => error.msg);
+      logger.warn("Login Validation Error: ", { errorMessages });
+      return sendError(res, errorMessages.join(", "), 400);
+    }
+
+    const { user } = await authenticationService.fetchUserFromDB(
+      email,
+      password,
+      next,
+      res,
+    );
+
+    const { accessToken, refreshToken } = await generateTokens(user);
+
+    return sendSuccess(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        user: {
+          username: user.username,
+          _id: user._id,
+        },
+      },
+      "Login Successful",
+      200,
+      [
+        (res) => res.cookie("accessToken", accessToken, HTTP_OPTIONS),
+        (res) => res.cookie("refreshToken", refreshToken, HTTP_OPTIONS),
+      ],
+    );
   }),
   //#endregion
 
-  //#region Register
-  register: catchAsync(async (req, res) => {
-    logger.info("Register Controller Called.");
-
-    return sendSuccess(res, {}, "Register Successful", 201);
+  //#region Logout User
+  logout: catchAsync(async (req, res, next) => {
+    return sendSuccess(res, {}, "Logout Successful", 200, [
+      (res) => res.clearCookie("accessToken"),
+      (res) => res.clearCookie("refreshToken"),
+    ]);
   }),
   //#endregion
 };

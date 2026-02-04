@@ -1,5 +1,6 @@
 import { clearRedisUserCache } from "../utils/clearRedisCache.utils.js";
 import {
+  createRegistrationSession,
   deleteRegistrationSession,
   getRegistrationSession,
 } from "../utils/registrationSession.utils.js";
@@ -8,11 +9,18 @@ import {
   sendOTP,
   sendWelcomeEmail,
   trackOTPRequests,
+  verifyOTP,
 } from "../utils/userAuthentication.utils.js";
 import { User } from "../models/User.model.js";
+import { logger, sendError } from "devdad-express-utils";
+import bcrypt from "bcrypt";
+
+const SALT_ROUNDS = 12;
 
 export const authenticationService = {
   async checkUserOtpRestrictionsAndRequests(email, next) {
+    logger.info("Auth Service checking OTP Restrictions");
+
     try {
       await checkOTPRestrictions(email, next);
       await trackOTPRequests(email, next);
@@ -26,13 +34,13 @@ export const authenticationService = {
   },
 
   async storeUserDataInRedisAndCreateRegistrationToken(userData, next) {
+    logger.info("Auth Service storing user data in redis and generating token");
+
     let registrationToken;
     try {
       registrationToken = await createRegistrationSession(userData);
       logger.info("Registration session created", {
         registrationToken: registrationToken.substring(0, 8) + "...",
-        email,
-        firstName,
       });
 
       return { registrationToken };
@@ -45,7 +53,11 @@ export const authenticationService = {
     }
   },
 
-  async sendUserOtp(userFullName, email, next) {
+  async sendUserOtp(userFullName, email, registrationToken, next) {
+    logger.info("Auth Service genereating OTP code and sending email", {
+      email,
+    });
+
     try {
       await sendOTP(userFullName, email);
       logger.info("OTP sent successfully", {
@@ -88,6 +100,8 @@ export const authenticationService = {
         registrationToken: registrationToken.substring(0, 8) + "...",
       });
 
+      console.log("Checking isVerified variable: ", isVerified);
+
       return { isVerified };
     } catch (error) {
       logger.error("OTP verification failed", {
@@ -104,19 +118,20 @@ export const authenticationService = {
     next,
   ) {
     let user;
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
     try {
       user = await User.create({
         fullName,
         email,
-        username,
-        password,
+        password: hashedPassword,
         isVerified,
       });
 
       logger.info("User created successfully", {
         userId: user._id,
         email,
-        username,
       });
 
       return { user };
@@ -160,6 +175,31 @@ export const authenticationService = {
         registrationToken: registrationToken.substring(0, 8) + "...",
         error: error.message,
       });
+    }
+  },
+
+  async fetchUserFromDB(email, password, next, res) {
+    let user;
+    try {
+      user = await User.findOne({ email });
+
+      if (!user) {
+        logger.warn("User Not Found: ", { email });
+        return sendError(res, "User Not Found", 404);
+      }
+
+      logger.info("User Found: ", { user });
+
+      const isPasswordMatching = await user.comparePassword(password);
+
+      if (!isPasswordMatching) {
+        logger.warn("Invalid Password");
+        return sendError(res, "Invalid Password", 400);
+      }
+      return { user };
+    } catch (error) {
+      logger.error("Failed to fetch User", { error });
+      next(error);
     }
   },
 };
