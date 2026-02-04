@@ -1,5 +1,6 @@
 import { connectDB, getDBStatus, logger } from "devdad-express-utils";
 import app from "./app.js";
+import { setupAutomaticCleanup } from "./utils/registrationCleanup.utils.js";
 
 const PORT = process.env.PORT || "3000";
 
@@ -9,8 +10,8 @@ const dbStatus = getDBStatus();
 (async () => {
   try {
     // // Setup automatic registration session cleanup (every 30 minutes)
-    // const cleanupInterval = setupAutomaticCleanup(30);
-    // logger.info("Registration cleanup service started");
+    const cleanupInterval = setupAutomaticCleanup(30);
+    logger.info("Registration cleanup service started");
 
     app.listen(PORT, () => {
       logger.info(`Backend App is running on port ${PORT}`);
