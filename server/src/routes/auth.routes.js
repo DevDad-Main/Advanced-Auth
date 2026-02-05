@@ -22,6 +22,16 @@ authRouter.post(
 
 authRouter.post("/login", loginUserValidation, authenticationController.login);
 authRouter.post("/logout", authenticationController.logout);
-// authRouter.post("/refresh-token", generateRefreshToken);
+authRouter.post("/refresh-token", authenticationController.refreshToken);
+
+// NOTE: Example usage of how to use different authentication middlewares.
+
+// router.get('/profile', authenticateUserMiddleware, getUserProfile);
+
+// // Optional auth (shows public vs private content)
+// router.get('/posts', optionalAuthMiddleware, getPosts);
+
+// // Verified email only
+// router.post('/premium', authenticateUserMiddleware, requireVerifiedEmail, upgradeAccount);
 
 export { authRouter };

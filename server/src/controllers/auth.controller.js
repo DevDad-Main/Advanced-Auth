@@ -6,9 +6,9 @@ import {
 } from "devdad-express-utils";
 import { validationResult } from "express-validator";
 import { User } from "../models/User.model.js";
-import bcrypt from "bcrypt";
 import { generateTokens } from "../utils/generateToken.utils.js";
 import { authenticationService } from "../services/auth.services.js";
+import { RefreshToken } from "../models/RefreshToken.model.js";
 
 //#region Constants
 const HTTP_OPTIONS = {
@@ -112,7 +112,9 @@ export const authenticationController = {
       );
 
     const { userData } = registrationSession;
-    logger.debug("Retrieved user data from registration session", { userData: { ...userData, password: '[REDACTED]' } });
+    logger.debug("Retrieved user data from registration session", {
+      userData: { ...userData, password: "[REDACTED]" },
+    });
     const { firstName, lastName, email, password } = userData;
     const fullName = `${firstName} ${lastName}`;
 
@@ -213,6 +215,98 @@ export const authenticationController = {
       (res) => res.clearCookie("accessToken"),
       (res) => res.clearCookie("refreshToken"),
     ]);
+  }),
+  //#endregion
+
+  //#region Refresh Token
+  refreshToken: catchAsync(async (req, res, next) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      logger.warn("Refresh token request missing token");
+      return sendError(res, "Refresh token required", 400);
+    }
+
+    // Find the refresh token in database
+    const storedToken = await RefreshToken.findOne({
+      token: refreshToken,
+    }).populate('user');
+
+    if (!storedToken) {
+      logger.warn("Invalid refresh token attempted");
+      return sendError(res, "Invalid refresh token", 401);
+    }
+
+    // Check if token has expired
+    if (storedToken.expiresAt < new Date()) {
+      logger.warn("Expired refresh token used", { tokenId: storedToken._id });
+      await RefreshToken.deleteOne({ _id: storedToken._id });
+      return sendError(res, "Refresh token expired", 401);
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = await generateTokens(storedToken.user);
+
+    // Remove old refresh token (rotation strategy)
+    await RefreshToken.deleteOne({ _id: storedToken._id });
+
+    return sendSuccess(
+      res,
+      { accessToken, refreshToken: newRefreshToken },
+      "Tokens refreshed successfully",
+      200,
+    );
+  }),
+  //#endregion
+
+  //#region Generate Refresh Token
+  generateRefreshToken: catchAsync(async (req, res, next) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      logger.warn("Refresh Token Not Found");
+      return sendError(res, "Refresh Token Not Found", 400);
+    }
+
+    const storedRefreshToken = await RefreshToken.findOne({
+      token: refreshToken,
+    });
+
+    if (!storedRefreshToken) {
+      logger.warn("Refresh Token Not Found");
+      return sendError(res, "Refresh Token Not Found", 404);
+    }
+
+    if (storedRefreshToken.expiresAt < new Date()) {
+      logger.warn("Refresh Token Expired");
+      return sendError(res, "Refresh Token Expired", 401);
+    }
+
+    const user = await User.findById(storedRefreshToken.user);
+
+    if (!user) {
+      logger.warn("User Not Found");
+      return sendError(res, "User Not Found", 404);
+    }
+
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+      await generateTokens(user);
+
+    const tokenToDelete = await RefreshToken.deleteOne({
+      _id: storedRefreshToken._id,
+    });
+
+    if (tokenToDelete.deletedCount === 0) {
+      logger.warn("Refresh Token Failed To Delete");
+      return sendError(res, "Refresh Token Failed To Delete", 404);
+    }
+
+    return sendSuccess(
+      res,
+      { accessToken: newAccessToken, refreshToken: newRefreshToken },
+      "Refresh Token Generated Successfully",
+      201,
+    );
   }),
   //#endregion
 };
