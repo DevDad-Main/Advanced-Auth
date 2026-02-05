@@ -9,6 +9,11 @@ import { RateLimiterRedis } from "rate-limiter-flexible";
 import redisClient from "./lib/redis.lib.js";
 import rateLimit from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
+import mongoSanitize from "express-mongo-sanitize";
+import xss from "xss-clean";
+import hpp from "hpp";
+import slowDown from "express-slow-down";
+import compression from "compression";
 
 //#region Constants
 const app = express();
@@ -44,10 +49,39 @@ const expressEndpointRateLimiter = rateLimit({
     sendCommand: (...args) => redisClient.call(...args),
   }),
 });
+
+// Gradually slow down responses after certain threshold to prevent abuse
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000, // 15 minutes time window
+  delayAfter: 50, // Allow 50 requests per 15 minutes at full speed
+  delayMs: 500, // Add 500ms delay per request after delayAfter threshold
+  maxDelayMs: 20000, // Maximum delay of 20 seconds to prevent complete blocking
+});
 //#endregion
 
 //#region Middleware
-app.use(helmet());
+// Compress response data for better performance
+app.use(compression());
+// Security headers to protect against common vulnerabilities
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"], // Only allow resources from same origin
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for CSS frameworks
+      scriptSrc: ["'self'"], // Only allow scripts from same origin
+      imgSrc: ["'self'", "data:", "https:"], // Allow images from same origin, data URIs, and HTTPS
+    },
+  },
+  crossOriginEmbedderPolicy: false // Disable for compatibility with some third-party resources
+}));
+// Prevent NoSQL injection attacks by sanitizing user input
+app.use(mongoSanitize());
+// Prevent Cross-Site Scripting (XSS) attacks by cleaning user input
+app.use(xss());
+// Prevent HTTP Parameter Pollution attacks
+app.use(hpp({
+  whitelist: ['sort', 'fields', 'page', 'limit'] // Allow these parameters for pagination and sorting
+}));
 app.use(
   cors({
     origin: allowedOrigins, // Array of allowed domains
@@ -63,7 +97,11 @@ app.use(
   }),
 );
 
+// Parse JSON request bodies with 3MB limit
 app.use(express.json({ limit: "3mb" }));
+// Parse URL-encoded request bodies with 3MB limit
+app.use(express.urlencoded({ extended: true, limit: "3mb" }));
+// Parse cookies for authentication and session management
 app.use(cookieParser());
 
 app.use((req, res, next) => {
@@ -78,10 +116,13 @@ app.use((req, res, next) => {
 //#endregion
 
 //#region EndPoints
+// Apply speed limiter to all routes
+app.use(speedLimiter);
+// Authentication routes with Redis client injection
 app.use(
   "/api/auth",
   (req, res, next) => {
-    req.redisClient = redisClient;
+    req.redisClient = redisClient; // Inject Redis client for rate limiting and caching
     next();
   },
   authRouter,

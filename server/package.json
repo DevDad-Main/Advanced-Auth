@@ -13,15 +13,19 @@
   "type": "module",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
     "devdad-express-utils": "^1.8.2",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.2.1",
+    "express-slow-down": "^3.0.1",
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
     "ioredis": "^5.9.2",
     "jsonwebtoken": "^9.0.3",
     "mailtrap": "^4.4.0",
@@ -30,7 +34,8 @@
     "rate-limit-redis": "^4.3.1",
     "rate-limiter-flexible": "^9.1.0",
     "redis": "^5.10.0",
-    "resend": "^6.9.1"
+    "resend": "^6.9.1",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

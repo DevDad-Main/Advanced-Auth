@@ -392,6 +392,7 @@ curl -X GET http://localhost:3000/api/protected \
 ### Actual Error Messages
 
 **Validation Errors:**
+
 - "First name is required."
 - "Last name is required."
 - "Email is required."
@@ -405,6 +406,7 @@ curl -X GET http://localhost:3000/api/protected \
 - "OTP must be a 4-digit number."
 
 **Authentication Errors:**
+
 - "User Already Exists"
 - "User Not Found"
 - "Invalid Password"
@@ -415,6 +417,7 @@ curl -X GET http://localhost:3000/api/protected \
 - "Refresh Token Failed To Delete"
 
 **OTP & Rate Limiting Errors:**
+
 - "Account is locked due to multiple failed attempts. Please Try Again After 30 Minutes."
 - "Too many failed attempts. Please try again after 30 minutes."
 - "Too many failed attempts. Please try again after 1 hour."
@@ -441,4 +444,3 @@ curl -X GET http://localhost:3000/api/protected \
 - Redis connection status
 
 Perfect foundation for building secure, scalable applications! 🚀
-

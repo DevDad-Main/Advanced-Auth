@@ -157,7 +157,7 @@ const generateWelcomeEmailHTML = (name) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Knect!</title>
+      <title>Welcome to ...!</title>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -297,7 +297,7 @@ const generateWelcomeEmailHTML = (name) => {
       <div class="container">
         <div class="header">
           <span class="emoji">🎉</span>
-          <h1>Welcome to the Knect Community!</h1>
+          <h1>Welcome to the Community!</h1>
         </div>
         <div class="content">
           <p class="greeting">Hi ${name},</p>
@@ -337,7 +337,7 @@ const generateWelcomeEmailHTML = (name) => {
         
         <div class="footer">
           <p>Thank you for joining us!</p>
-          <p>The Team @ Knect</p>
+          <p>The Team @ DevDad</p>
           <div class="social-links">
             <a href="#">📧</a>
             <a href="#">🐦</a>
@@ -358,7 +358,7 @@ export const sendWelcomeEmail = async (name, email) => {
   try {
     const htmlContent = generateWelcomeEmailHTML(name);
 
-    await sendMail(email, "Welcome to Knect! 🎉", htmlContent);
+    await sendMail(email, "Welcome to ...! 🎉", htmlContent);
 
     logger.info("Welcome email sent successfully", { email });
   } catch (error) {
@@ -450,7 +450,9 @@ export const sendOTP = async (name, email) => {
 export const verifyOTP = async (email, otp) => {
   try {
     const storedOTP = await redisClient.get(`otp:${email}`);
-    logger.debug("Retrieved stored OTP from Redis", { storedOTP: storedOTP ? '[REDACTED]' : null });
+    logger.debug("Retrieved stored OTP from Redis", {
+      storedOTP: storedOTP ? "[REDACTED]" : null,
+    });
 
     if (!storedOTP) {
       throw new AppError("Invalid or expired OTP", 400);
@@ -461,7 +463,10 @@ export const verifyOTP = async (email, otp) => {
       (await redisClient.get(failedAttemptsKey)) || "0",
     );
 
-    logger.debug("Comparing OTP values", { storedOTP: storedOTP ? '[REDACTED]' : null, otpProvided: !!otp });
+    logger.debug("Comparing OTP values", {
+      storedOTP: storedOTP ? "[REDACTED]" : null,
+      otpProvided: !!otp,
+    });
 
     if (parseInt(storedOTP) !== parseInt(otp)) {
       if (failedAttempts >= 2) {
