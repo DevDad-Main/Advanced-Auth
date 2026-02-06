@@ -54,7 +54,7 @@ const expressEndpointRateLimiter = rateLimit({
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes time window
   delayAfter: 50, // Allow 50 requests per 15 minutes at full speed
-  delayMs: 500, // Add 500ms delay per request after delayAfter threshold
+  delayMs: () => 500, // Add 500ms delay per request after delayAfter threshold
   maxDelayMs: 20000, // Maximum delay of 20 seconds to prevent complete blocking
 });
 //#endregion
@@ -63,25 +63,29 @@ const speedLimiter = slowDown({
 // Compress response data for better performance
 app.use(compression());
 // Security headers to protect against common vulnerabilities
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"], // Only allow resources from same origin
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for CSS frameworks
-      scriptSrc: ["'self'"], // Only allow scripts from same origin
-      imgSrc: ["'self'", "data:", "https:"], // Allow images from same origin, data URIs, and HTTPS
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"], // Only allow resources from same origin
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for CSS frameworks
+        scriptSrc: ["'self'"], // Only allow scripts from same origin
+        imgSrc: ["'self'", "data:", "https:"], // Allow images from same origin, data URIs, and HTTPS
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false // Disable for compatibility with some third-party resources
-}));
+    crossOriginEmbedderPolicy: false, // Disable for compatibility with some third-party resources
+  }),
+);
 // Prevent NoSQL injection attacks by sanitizing user input
 app.use(mongoSanitize());
 // Prevent Cross-Site Scripting (XSS) attacks by cleaning user input
 app.use(xss());
 // Prevent HTTP Parameter Pollution attacks
-app.use(hpp({
-  whitelist: ['sort', 'fields', 'page', 'limit'] // Allow these parameters for pagination and sorting
-}));
+app.use(
+  hpp({
+    whitelist: ["sort", "fields", "page", "limit"], // Allow these parameters for pagination and sorting
+  }),
+);
 app.use(
   cors({
     origin: allowedOrigins, // Array of allowed domains
@@ -118,6 +122,10 @@ app.use((req, res, next) => {
 //#region EndPoints
 // Apply speed limiter to all routes
 app.use(speedLimiter);
+
+// Apply Express Endpoint RateLimiter to specific routes
+app.use("/api/auth/register", expressEndpointRateLimiter);
+
 // Authentication routes with Redis client injection
 app.use(
   "/api/auth",
